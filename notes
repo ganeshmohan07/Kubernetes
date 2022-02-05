@@ -1,0 +1,307 @@
+ubuntu@Kmaster01:~/pod$ more pod.yml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod2
+  labels:
+    app: nginx-app1
+spec:
+ containers:
+ - name: c1
+   image: nginx
+ nodeName: kworker02
+******************************
+ubuntu@Kmaster01:~/pod$ more pod1.yml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod3
+  labels:
+    app: nginx-app1
+spec:
+ containers:
+ - name: c1
+   image: nginx
+ nodeSelector:
+         env: "stage"
+*****************************************
+ubuntu@Kmaster01:~/pod$ more pod2.yml
+apiVersion: v1
+kind: Pod
+metadata:
+        name: myapp-pod1
+spec:
+  containers:
+  - name: nginx-container
+    image: nginx
+  tolerations:
+  - key: app
+    operator: "Equal"
+    value: "web"
+    effect: "NoSchedule"
+
+***************************************************
+ubuntu@Kmaster01:~/rc$ more nginx-rc.yml
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: nginx-rc
+spec:
+  replicas: 3
+  template:
+    metadata:
+      name: nginx-pod
+      labels:
+        app: nginx-app
+    spec:
+      containers:
+      - name: nginx-container
+        image: nginx
+        ports:
+        - containerPort: 80
+  selector:
+    app: nginx-app
+
+ubuntu@Kmaster01:~/replicaset$ more nginx.rs.yml
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: nginx-rs
+spec:
+  replicas: 3
+  template:
+    metadata:
+      name: nginx-pod
+      labels:
+        app: nginx-app
+        tier: frontend
+    spec:
+      containers:
+      - name: nginx-container
+        image: nginx
+        ports:
+        - containerPort: 80
+  selector:
+    matchLabels:
+      app: nginx-app
+    matchExpressions:
+      - {key: tier, operator: In, values: [frontend]}
+****************************************************************
+ubuntu@Kmaster01:~/deployment$ more deployment.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deploy
+  labels:
+    app: nginx-app
+spec:
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: nginx-app
+    spec:
+      containers:
+      - name: nginx-container
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
+  selector:
+    matchLabels:
+      app: nginx-app
+**********************************************
+ubuntu@Kmaster01:~$ cd secrets/
+ubuntu@Kmaster01:~/secrets$ ls
+password.txt  username.txt
+ubuntu@Kmaster01:~/secrets$ more password.txt
+pa$$w00rd
+ubuntu@Kmaster01:~/secrets$ more username.txt
+admin
+*******************************Deployment************
+
+ubuntu@Kmaster01:~/service$ more deploy.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx-app
+  template:
+    metadata:
+      labels:
+        app: nginx-app
+    spec:
+      containers:
+      - name: nginx-container
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
+		
+****************************ingress**********
+ubuntu@Kmaster01:~/service$ more ingress.yml
+#ingress.yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: simple-fanout-example
+  annotations:
+   nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - http:
+     paths:
+     - path: /nginx
+       backend:
+        serviceName: my-service
+        servicePort: 80
+     - path: /tomcat
+       backend:
+        serviceName: tomcat
+        servicePort: 8080
+
+****************************Service Load-balancer******
+
+ubuntu@Kmaster01:~/service$ more service-cl.yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+  labels:
+    app: nginx-app
+spec:
+  selector:
+    app: nginx-app
+  type:  ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+ubuntu@Kmaster01:~/service$ more service-lb.yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+  labels:
+    app: nginx-app
+spec:
+  selector:
+    app: nginx-app
+  type: LoadBalancer
+  ports:
+  - nodePort: 31000
+    port: 80
+    targetPort: 80
+ubuntu@Kmaster01:~/service$ more service-np.yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+  labels:
+    app: nginx-app
+spec:
+  selector:
+    app: nginx-app
+  type: NodePort
+  ports:
+  - nodePort: 31111
+    port: 80
+    targetPort: 80
+ubuntu@Kmaster01:~/service$
+*****************************************Storage Volume**********
+ubuntu@Kmaster01:~/volume$ ls
+emptydir.yml  hostpath.yml  pv.yml  pvc.yml  volumepod.yml
+ubuntu@Kmaster01:~/volume$ more emptydir.yml
+# nginx-emptydir.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-emptydir
+spec:
+  containers:
+  - name: nginx-container
+    image: nginx
+    volumeMounts:
+    - name: test-vol
+      mountPath: /test-mnt
+  volumes:
+  - name: test-vol
+    emptyDir: {}
+
+ubuntu@Kmaster01:~/volume$ ls
+emptydir.yml  hostpath.yml  pv.yml  pvc.yml  volumepod.yml
+ubuntu@Kmaster01:~/volume$ more hostpath.yml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-hostpath
+spec:
+  containers:
+    - name: nginx-container
+      image: nginx
+      volumeMounts:
+      - mountPath: /test-mnt
+        name: test-vol
+  volumes:
+  - name: test-vol
+    hostPath:
+      path: /test-vol
+ubuntu@Kmaster01:~/volume$
+ubuntu@Kmaster01:~/volume$ more pv.yml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-hostpath
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/kube"
+
+ubuntu@Kmaster01:~/volume$ ls
+emptydir.yml  hostpath.yml  pv.yml  pvc.yml  volumepod.yml
+ubuntu@Kmaster01:~/volume$
+ubuntu@Kmaster01:~/volume$ more pvc.yml
+#pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-hostpath
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+ubuntu@Kmaster01:~/volume$
+ubuntu@Kmaster01:~/volume$
+ubuntu@Kmaster01:~/volume$ more volumepod.yml
+#pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox
+spec:
+  volumes:
+  - name: host-volume
+    persistentVolumeClaim:
+      claimName: pvc-hostpath
+  containers:
+  - image: busybox
+    name: busybox
+    command: ["/bin/sh"]
+    args: ["-c", "sleep 600"]
+    volumeMounts:
+    - name: host-volume
+      mountPath: /mydata
+ubuntu@Kmaster01:~/volume$
+
